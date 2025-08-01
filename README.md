@@ -126,6 +126,3 @@ npm run build
 - [ ] Texture loading and management system
 - [ ] Animation timeline editor
 - [ ] Post-processing effects pipeline
-- [ ] Collaborative editing features
-- [ ] Performance profiling tools
-- [ ] Export functionality for scenes and materials
