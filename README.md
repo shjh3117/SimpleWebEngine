@@ -2,7 +2,8 @@
 
 > **🌐 [Live Demo](https://shjh3117.github.io/SimpleWebEngine/)** - Try it out in your browser!
 
-A lightweight 3D web engine built with React and Three.js, featuring real-time material editing, dynamic lighting, and interactive 3D model management.
+A lightweight 3D web engine built with React and Three.js, featuring real-time material editing, dynamic lighting, and interactive 3D model management.  
+<img width="1024" height="1024" alt="Screenshot 2025-08-02 012125" src="https://github.com/user-attachments/assets/ba596dfa-2dce-4822-b1a6-9d10363df81f" />
 
 ## 🚀 Features
 
