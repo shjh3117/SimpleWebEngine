@@ -108,7 +108,7 @@ SimpleWebEngine/
 ```bash
 # Clone the repository
 git clone https://github.com/shjh3117/SimpleWebEngine.git
-cd simple-web-engine
+cd SimpleWebEngine
 
 # Install dependencies
 npm install
