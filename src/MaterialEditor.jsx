@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 
-const MaterialEditor = ({ material, onMaterialUpdate, onClose }) => {
-  const defaultShader = `varying vec3 vNormal;
+const defaultShader = `
+varying vec3 vWorldNormal;
+varying vec3 vWorldTangent;
 varying vec3 vPosition;
 varying vec4 vLightSpacePosition;
 uniform vec3 lightPosition;
@@ -11,48 +12,63 @@ uniform sampler2D shadowMap;
 uniform vec2 shadowMapSize;
 uniform float shadowBias;
 
+vec3 resolveLightVector(vec3 worldPos) {
+    return normalize(lightPosition - worldPos);
+}
+
 float getShadow() {
-    if (shadowMap == null) return 1.0;
-    
+    if (shadowMap == null) {
+        return 1.0;
+    }
     vec3 projCoords = vLightSpacePosition.xyz / vLightSpacePosition.w;
     projCoords = projCoords * 0.5 + 0.5;
-    
-    if (projCoords.z > 1.0) return 1.0;
-    if (projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0) return 1.0;
-    
+    if (projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0 || projCoords.z > 1.0) {
+        return 1.0;
+    }
     float currentDepth = projCoords.z;
-    vec3 normal = normalize(vNormal);
-    vec3 lightDir = normalize(lightPosition - vPosition);
-    float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
-    
+    vec3 normal = normalize(vWorldNormal);
+    vec3 lightDir = resolveLightVector(vPosition);
+    float bias = max(shadowBias * (1.0 - dot(normal, lightDir)), 0.005);
     float shadow = 0.0;
     vec2 texelSize = 1.0 / shadowMapSize;
-    for(int x = -1; x <= 1; ++x) {
-        for(int y = -1; y <= 1; ++y) {
+    for (int x = -1; x <= 1; ++x) {
+        for (int y = -1; y <= 1; ++y) {
             float pcfDepth = texture2D(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r;
-            shadow += (currentDepth - bias) > pcfDepth ? 0.0 : 1.0;
+            shadow += currentDepth - bias > pcfDepth ? 0.0 : 1.0;
         }
     }
     shadow /= 9.0;
-    
     return shadow;
 }
 
 void main() {
-    vec3 normal = normalize(vNormal);
-    vec3 lightDir = normalize(lightPosition - vPosition);
-    float diff = max(dot(normal, lightDir), 0.0);
-    vec3 diffuse = diff * lightColor * lightIntensity;
-    float shadow = getShadow();
-    vec3 ambient = vec3(0.1, 0.1, 0.1);
-    vec3 finalColor = ambient + diffuse * vec3(0.8, 0.3, 0.3) * shadow;
-    gl_FragColor = vec4(finalColor, 1.0);
-}`;
+    vec3 N = normalize(vWorldNormal);
+    vec3 T = normalize(vWorldTangent);
+    vec3 L = resolveLightVector(vPosition);
+    vec3 V = normalize(cameraPosition - vPosition);
 
+    float diff = max(dot(N, L), 0.0);
+    vec3 diffuse = diff * lightColor * lightIntensity * vec3(0.8, 0.3, 0.3);
+    vec3 ambient = vec3(0.1, 0.1, 0.1);
+    float shadow = getShadow();
+
+    float rim = pow(clamp(1.0 - max(dot(T, V), 0.0), 0.0, 1.0), 4.0);
+    vec3 rimColor = vec3(0.1, 0.2, 0.4) * rim;
+
+    vec3 finalColor = ambient + rimColor + diffuse * shadow;
+    gl_FragColor = vec4(finalColor, 1.0);
+`;
+
+const MaterialEditor = ({ material, onMaterialUpdate, onClose, vectorExampleShader }) => {
   const [shaderCode, setShaderCode] = useState(material?.fragmentShader || defaultShader);
   const [materialName, setMaterialName] = useState(material?.name || 'Custom Material');
   const [isCompiling, setIsCompiling] = useState(false);
   const [compileError, setCompileError] = useState(null);
+
+  const applyShader = (code) => {
+    setShaderCode(code);
+    setCompileError(null);
+  };
 
   const handleSave = () => {
     setIsCompiling(true);
@@ -77,12 +93,16 @@ void main() {
         <div style={{ background: '#333', padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <input type="text" value={materialName} onChange={(e) => setMaterialName(e.target.value)} style={{ background: '#444', border: '1px solid #666', padding: '4px', color: '#fff', fontSize: '14px' }} />
           <div style={{ display: 'flex', gap: '4px' }}>
-            <button onClick={() => { setShaderCode(defaultShader); setCompileError(null); }} style={{ background: '#666', color: '#fff', border: 'none', padding: '4px 8px', cursor: 'pointer' }}>Reset</button>
+            <button onClick={() => applyShader(defaultShader)} style={{ background: '#666', color: '#fff', border: 'none', padding: '4px 8px', cursor: 'pointer' }}>Reset</button>
+            <button onClick={() => vectorExampleShader && applyShader(vectorExampleShader)} disabled={!vectorExampleShader} style={{ background: vectorExampleShader ? '#06c' : '#555', color: '#fff', border: 'none', padding: '4px 8px', cursor: vectorExampleShader ? 'pointer' : 'not-allowed' }}>Vector Example</button>
             <button onClick={handleSave} disabled={isCompiling} style={{ background: isCompiling ? '#666' : '#0a0', color: '#fff', border: 'none', padding: '4px 8px', cursor: isCompiling ? 'not-allowed' : 'pointer' }}>{isCompiling ? '...' : 'Save'}</button>
-            <button onClick={onClose} style={{ background: '#a00', color: '#fff', border: 'none', padding: '4px 8px', cursor: 'pointer' }}>×</button>
+            <button onClick={onClose} style={{ background: '#a00', color: '#fff', border: 'none', padding: '4px 8px', cursor: 'pointer' }}>X</button>
           </div>
         </div>
         <textarea value={shaderCode} onChange={(e) => setShaderCode(e.target.value)} style={{ flex: 1, background: '#1e1e1e', color: '#f8f8f2', border: 'none', padding: '12px', fontFamily: 'monospace', fontSize: '12px', resize: 'none', outline: 'none' }} />
+        <div style={{ background: '#2f2f2f', color: '#ccc', padding: '4px 8px', fontSize: '11px' }}>
+          N = vWorldNormal | T = vWorldTangent | L = normalize(lightPosition - vPosition) | V = normalize(cameraPosition - vPosition)
+        </div>
         {compileError && <div style={{ background: '#a00', color: '#fff', padding: '4px 8px', fontSize: '11px' }}>{compileError}</div>}
       </div>
     </div>
@@ -90,3 +110,4 @@ void main() {
 };
 
 export default MaterialEditor;
+

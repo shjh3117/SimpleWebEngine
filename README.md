@@ -1,11 +1,11 @@
 # SimpleWebEngine
 
-> **🌐 [Live Demo](https://shjh3117.github.io/SimpleWebEngine/)** - Try it out in your browser!
+> **[Live Demo](https://shjh3117.github.io/SimpleWebEngine/)** - Try it out in your browser!
 
 A lightweight 3D web engine built with React and Three.js, featuring real-time material editing, dynamic lighting, and interactive 3D model management.  
 <img width="1024" height="1024" alt="Screenshot 2025-08-02 012125" src="https://github.com/user-attachments/assets/ba596dfa-2dce-4822-b1a6-9d10363df81f" />
 
-## 🚀 Features
+## Features
 
 ### Core 3D Engine
 - **Real-time 3D rendering** with Three.js WebGL renderer
@@ -25,6 +25,7 @@ A lightweight 3D web engine built with React and Three.js, featuring real-time m
 - **Shadow integration** in custom shaders
 - **Material library** with save/load functionality
 - **Original material restoration** system
+- **Vector debug material** seeded by default to visualize world normal, tangent, view, and light directions
 
 ### User Interface
 - **Responsive design** with professional dark theme
@@ -33,7 +34,7 @@ A lightweight 3D web engine built with React and Three.js, featuring real-time m
 - **Code editor** with syntax highlighting for GLSL shaders
 - **Status indicators** for loading states and selections
 
-## 🛠 Technical Stack
+## Technical Stack
 
 - **Frontend**: React 18 with functional components and hooks
 - **3D Graphics**: Three.js with WebGL renderer
@@ -41,31 +42,21 @@ A lightweight 3D web engine built with React and Three.js, featuring real-time m
 - **Styling**: CSS-in-JS with inline styles for component isolation
 - **File Handling**: FBXLoader for 3D model import
 
-## 🏗 Architecture
+## Architecture
 
 ### Component Structure
 ```
 SimpleWebEngine/
-├── SimpleWebEngine.jsx      # Main application component
-├── ContentBrowser.jsx       # Asset and material management UI
-├── LightController.jsx      # Real-time lighting controls
-├── MaterialEditor.jsx       # Shader code editor with live preview
-└── hooks/
-    ├── useCameraControls.js # Camera interaction logic
-    ├── useMaterialManager.js# Custom material system
-    ├── useModelLoader.js    # FBX loading and processing
-    └── useSceneManager.js   # Three.js scene management
+|- SimpleWebEngine.jsx      # Main application component
+|- ContentBrowser.jsx       # Asset and material management UI
+|- LightController.jsx      # Real-time lighting controls
+|- MaterialEditor.jsx       # Shader code editor with live preview
+`- hooks/
+   |- useCameraControls.js  # Camera interaction logic
+   |- useMaterialManager.js # Custom material system
+   |- useModelLoader.js     # FBX loading and processing
+   `- useSceneManager.js    # Three.js scene management
 ```
-
-### Key Design Patterns
-- **Custom Hooks**: Modular logic separation for reusability
-- **Component Composition**: Flexible UI component architecture
-- **State Management**: React hooks for local state with prop drilling
-- **Resource Management**: Proper disposal of Three.js resources
-
-## 🎮 Controls
-
-| Action | Input |
 |--------|-------|
 | Orbit Camera | Left Mouse + Drag |
 | First Person Look | Right Mouse + Drag |
@@ -74,7 +65,7 @@ SimpleWebEngine/
 | Combined Zoom | Left + Right Mouse + Drag |
 | Select Mesh | Left Click |
 
-## 💡 Usage
+## Usage
 
 ### Loading Models
 1. Click "Load FBX" to import your 3D models
@@ -85,12 +76,18 @@ SimpleWebEngine/
 1. Click "+ New" in the Materials tab
 2. Edit GLSL fragment shader code in the material editor
 3. Save to compile and add to your material library
+4. Shaders are authored in GLSL; use the Vector Example preset as a starting template.
 
 ### Applying Materials
 1. Select a 3D mesh by clicking on it
 2. Choose a material from the Materials tab
-3. Click the green checkmark (✓) to apply
+3. Click the green "Use" button to apply
 4. Use "Revert" to restore original materials
+
+### Visualizing Lighting Vectors
+1. Open any material in the editor and press **Vector Example** to load the built-in debug shader.
+2. Apply the material to a mesh using the **Use** button to see packed RGB(A) world-space vectors.
+3. Modify the shader or copy it as a template for your own GLSL experiments.
 
 ### Lighting Control
 - Adjust **Azimuth** for horizontal light rotation
@@ -98,7 +95,7 @@ SimpleWebEngine/
 - Control **Intensity** for brightness
 - Click "Reset" to return to default settings
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - Node.js (v16 or higher)
@@ -122,7 +119,7 @@ npm run dev
 npm run build
 ```
 
-## 📈 Future Enhancements
+## Future Enhancements
 
 - [ ] Texture loading and management system
 - [ ] Animation timeline editor

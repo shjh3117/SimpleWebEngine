@@ -20,14 +20,14 @@ const ContentBrowser = ({ assets, materials, onAssetSelect, onAssetDelete, onMat
           </button>
         )}
       </div>
-      
+
       <div style={{ flex: 1, padding: '8px', overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '4px' }}>
         {activeTab === 'models' && (
           <>
             {assets.map((asset) => (
               <div key={asset.id} onClick={() => onAssetSelect(asset)} style={{ background: '#555', padding: '8px', cursor: 'pointer', position: 'relative', textAlign: 'center' }}>
-                <button onClick={(e) => { e.stopPropagation(); onAssetDelete(asset.id); }} style={{ position: 'absolute', top: '2px', right: '2px', background: '#f44', color: '#fff', border: 'none', width: '16px', height: '16px', fontSize: '10px', cursor: 'pointer' }}>×</button>
-                <div style={{ fontSize: '24px' }}>📦</div>
+                <button onClick={(e) => { e.stopPropagation(); onAssetDelete(asset.id); }} style={{ position: 'absolute', top: '2px', right: '2px', background: '#f44', color: '#fff', border: 'none', width: '16px', height: '16px', fontSize: '10px', cursor: 'pointer' }}>X</button>
+                <div style={{ fontSize: '16px', fontWeight: 'bold' }}>OBJ</div>
                 <div style={{ color: '#ccc', fontSize: '10px' }}>{asset.name}</div>
               </div>
             ))}
@@ -39,9 +39,9 @@ const ContentBrowser = ({ assets, materials, onAssetSelect, onAssetDelete, onMat
           <>
             {materials.map((material) => (
               <div key={material.id} onClick={() => onMaterialEdit(material)} style={{ background: '#555', padding: '8px', cursor: 'pointer', position: 'relative', textAlign: 'center' }}>
-                <button onClick={(e) => { e.stopPropagation(); onMaterialDelete(material.id); }} style={{ position: 'absolute', top: '2px', right: '2px', background: '#f44', color: '#fff', border: 'none', width: '16px', height: '16px', fontSize: '10px', cursor: 'pointer' }}>×</button>
-                <button onClick={(e) => { e.stopPropagation(); onMaterialApply(material); }} style={{ position: 'absolute', top: '2px', left: '2px', background: '#0a0', color: '#fff', border: 'none', width: '16px', height: '16px', fontSize: '10px', cursor: 'pointer' }}>✓</button>
-                <div style={{ fontSize: '24px' }}>🎨</div>
+                <button onClick={(e) => { e.stopPropagation(); onMaterialDelete(material.id); }} style={{ position: 'absolute', top: '2px', right: '2px', background: '#f44', color: '#fff', border: 'none', width: '16px', height: '16px', fontSize: '10px', cursor: 'pointer' }}>X</button>
+                <button onClick={(e) => { e.stopPropagation(); onMaterialApply(material); }} style={{ position: 'absolute', top: '2px', left: '2px', background: '#0a0', color: '#fff', border: 'none', width: '36px', height: '16px', fontSize: '10px', cursor: 'pointer' }}>Use</button>
+                <div style={{ fontSize: '16px', fontWeight: 'bold' }}>MAT</div>
                 <div style={{ color: '#ccc', fontSize: '10px' }}>{material.name}</div>
               </div>
             ))}

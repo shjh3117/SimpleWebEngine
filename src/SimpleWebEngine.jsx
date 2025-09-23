@@ -17,7 +17,7 @@ const SimpleWebEngine = () => {
   const [editingMaterial, setEditingMaterial] = useState(null);
 
   const sceneManager = useSceneManager();
-  const { materials, createMaterial, updateMaterial, deleteMaterial, applyMaterialToMesh, revertToOriginalMaterial, updateAllMaterialUniforms } = useMaterialManager(directionalLight);
+  const { materials, createMaterial, updateMaterial, deleteMaterial, applyMaterialToMesh, revertToOriginalMaterial, updateAllMaterialUniforms, vectorDebugFragmentShader } = useMaterialManager(directionalLight);
   const { resetCamera } = useCameraControls(isSceneReady ? sceneManager.camera : null, isSceneReady ? sceneManager.renderer?.domElement : null);
 
   const { loadFBX, createSampleModel, loading } = useModelLoader(
@@ -96,7 +96,7 @@ const SimpleWebEngine = () => {
         {error && <span style={{ color: '#f44' }}>{error}</span>}
         <div style={{ marginLeft: 'auto', color: '#ccc', fontSize: '12px' }}>
           Models: {assets.length} | Materials: {materials.length}
-          {selectedMesh && <span style={{ color: '#0f0' }}> | Selected: ✓</span>}
+          {selectedMesh && (<span style={{ color: '#0f0' }}> | Selected: {selectedMesh.name || selectedMesh.userData?.modelId || 'Mesh'}</span>)}
         </div>
       </div>
 
@@ -124,6 +124,7 @@ const SimpleWebEngine = () => {
           material={editingMaterial}
           onMaterialUpdate={(updated) => { updateMaterial(updated); setEditingMaterial(null); }}
           onClose={() => setEditingMaterial(null)}
+          vectorExampleShader={vectorDebugFragmentShader}
         />
       )}
     </div>
@@ -131,3 +132,11 @@ const SimpleWebEngine = () => {
 };
 
 export default SimpleWebEngine;
+
+
+
+
+
+
+
+

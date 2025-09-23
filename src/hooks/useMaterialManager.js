@@ -1,66 +1,146 @@
 import { useState, useCallback } from 'react';
 import * as THREE from 'three';
 
+const vertexShader = `
+  varying vec3 vNormal;
+  varying vec3 vWorldNormal;
+  varying vec3 vWorldTangent;
+  varying vec3 vPosition;
+  varying vec4 vLightSpacePosition;
+
+  uniform mat4 lightSpaceMatrix;
+
+  vec3 resolveWorldNormal(vec3 objectNormal) {
+    return normalize(mat3(modelMatrix) * objectNormal);
+  }
+
+  vec3 resolveWorldTangent(vec3 worldNormal) {
+    vec3 reference = abs(worldNormal.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(0.0, 1.0, 0.0);
+    vec3 tangent = normalize(cross(reference, worldNormal));
+    if (length(tangent) < 1e-5) {
+      reference = vec3(1.0, 0.0, 0.0);
+      tangent = normalize(cross(reference, worldNormal));
+    }
+    return tangent;
+  }
+
+  void main() {
+    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+    vPosition = worldPosition.xyz;
+    vWorldNormal = resolveWorldNormal(normal);
+    vNormal = vWorldNormal;
+    vWorldTangent = resolveWorldTangent(vWorldNormal);
+    vLightSpacePosition = lightSpaceMatrix * worldPosition;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const defaultFragmentShader = `
+  varying vec3 vNormal;
+  varying vec3 vWorldNormal;
+  varying vec3 vWorldTangent;
+  varying vec3 vPosition;
+  varying vec4 vLightSpacePosition;
+  uniform vec3 lightPosition;
+  uniform vec3 lightColor;
+  uniform float lightIntensity;
+  uniform sampler2D shadowMap;
+  uniform vec2 shadowMapSize;
+  uniform float shadowBias;
+
+  vec3 resolveLightVector(vec3 position) {
+    return normalize(lightPosition - position);
+  }
+
+  float getShadow() {
+    if (shadowMap == null) {
+      return 1.0;
+    }
+    vec3 projCoords = vLightSpacePosition.xyz / vLightSpacePosition.w;
+    projCoords = projCoords * 0.5 + 0.5;
+    if (projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0 || projCoords.z > 1.0) {
+      return 1.0;
+    }
+    float currentDepth = projCoords.z;
+    vec3 normal = normalize(vWorldNormal);
+    vec3 lightDir = resolveLightVector(vPosition);
+    float bias = max(shadowBias * (1.0 - dot(normal, lightDir)), 0.005);
+    float shadow = 0.0;
+    vec2 texelSize = 1.0 / shadowMapSize;
+    for (int x = -1; x <= 1; ++x) {
+      for (int y = -1; y <= 1; ++y) {
+        float pcfDepth = texture2D(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r;
+        shadow += currentDepth - bias > pcfDepth ? 0.0 : 1.0;
+      }
+    }
+    shadow /= 9.0;
+    return shadow;
+  }
+
+  void main() {
+    vec3 N = normalize(vWorldNormal);
+    vec3 T = normalize(vWorldTangent);
+    vec3 L = resolveLightVector(vPosition);
+    vec3 V = normalize(cameraPosition - vPosition);
+
+    float diff = max(dot(N, L), 0.0);
+    vec3 diffuseAlbedo = vec3(0.8, 0.3, 0.3);
+    vec3 diffuse = diff * lightColor * lightIntensity * diffuseAlbedo;
+    float shadow = getShadow();
+    vec3 ambient = vec3(0.1, 0.1, 0.1);
+
+    // Example: use the tangent to add a subtle rim highlight so artists can verify the basis.
+    float rim = pow(clamp(1.0 - max(dot(T, V), 0.0), 0.0, 1.0), 4.0);
+    vec3 rimColor = vec3(0.1, 0.2, 0.4) * rim;
+
+    vec3 finalColor = ambient + (diffuse * shadow) + rimColor;
+    gl_FragColor = vec4(finalColor, 1.0);
+  }
+`;
+
+const vectorDebugFragmentShader = `
+  varying vec3 vWorldNormal;
+  varying vec3 vWorldTangent;
+  varying vec3 vPosition;
+  uniform vec3 lightPosition;
+
+  vec3 remapToColor(vec3 value) {
+    return 0.5 + 0.5 * value;
+  }
+
+  void main() {
+    vec3 N = normalize(vWorldNormal);
+    vec3 T = normalize(vWorldTangent);
+    vec3 L = normalize(lightPosition - vPosition);
+    vec3 V = normalize(cameraPosition - vPosition);
+
+    vec3 normalColor = remapToColor(N);
+    vec3 tangentColor = remapToColor(T);
+    vec3 lightColor = remapToColor(L);
+    vec3 viewColor = remapToColor(V);
+
+    // Pack N.x, T.y, and V.z into RGB so you can inspect each quickly.
+    vec3 packed = vec3(normalColor.r, tangentColor.g, viewColor.b);
+    // Add a small light-direction cue in the alpha channel via luminance.
+    float lightLuminance = dot(lightColor, vec3(0.3333));
+
+    gl_FragColor = vec4(packed, clamp(lightLuminance, 0.0, 1.0));
+  }
+`;
+
 export const useMaterialManager = (directionalLight) => {
-  const [materials, setMaterials] = useState([]);
-
-  const vertexShader = `
-    varying vec3 vNormal;
-    varying vec3 vPosition;
-    varying vec4 vLightSpacePosition;
-    uniform mat4 lightSpaceMatrix;
-    void main() {
-        vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-        vPosition = worldPosition.xyz;
-        vNormal = normalize(mat3(modelMatrix) * normal);
-        vLightSpacePosition = lightSpaceMatrix * worldPosition;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-  `;
-
-  const defaultFragmentShader = `
-    varying vec3 vNormal;
-    varying vec3 vPosition;
-    varying vec4 vLightSpacePosition;
-    uniform vec3 lightPosition;
-    uniform vec3 lightColor;
-    uniform float lightIntensity;
-    uniform sampler2D shadowMap;
-    uniform vec2 shadowMapSize;
-    uniform float shadowBias;
-    
-    float getShadow() {
-        vec3 projCoords = vLightSpacePosition.xyz / vLightSpacePosition.w;
-        projCoords = projCoords * 0.5 + 0.5;
-        if (projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0 || projCoords.z > 1.0) return 1.0;
-        float currentDepth = projCoords.z;
-        vec3 normal = normalize(vNormal);
-        vec3 lightDir = normalize(lightPosition - vPosition);
-        float bias = max(shadowBias * (1.0 - dot(normal, lightDir)), 0.005);
-        float shadow = 0.0;
-        vec2 texelSize = 1.0 / shadowMapSize;
-        for(int x = -1; x <= 1; ++x) {
-            for(int y = -1; y <= 1; ++y) {
-                float pcfDepth = texture2D(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r;
-                shadow += currentDepth - bias > pcfDepth ? 0.0 : 1.0;
-            }
-        }
-        shadow /= 9.0;
-        return shadow;
-    }
-    
-    void main() {
-        vec3 normal = normalize(vNormal);
-        vec3 lightDir = normalize(lightPosition - vPosition);
-        float diff = max(dot(normal, lightDir), 0.0);
-        vec3 diffuse = diff * lightColor * lightIntensity;
-        float shadow = getShadow();
-        vec3 ambient = vec3(0.1, 0.1, 0.1);
-        vec3 finalColor = ambient + diffuse * vec3(0.8, 0.3, 0.3) * shadow;
-        gl_FragColor = vec4(finalColor, 1.0);
-    }
-  `;
-
+  const [materials, setMaterials] = useState(() => {
+    const now = Date.now();
+    return [
+      {
+        id: now,
+        name: 'Vector Debug',
+        fragmentShader: vectorDebugFragmentShader,
+        createdAt: now,
+        lastModified: now
+      }
+    ];
+  });
   const createThreeJSMaterial = useCallback((materialData) => {
     const fragmentShader = materialData.fragmentShader || defaultFragmentShader;
     const uniforms = {
@@ -105,7 +185,7 @@ export const useMaterialManager = (directionalLight) => {
               directionalLight.shadow.map.height
             );
             
-            // 그림자 카메라의 매트릭스를 강제로 업데이트
+            // 그림??카메?�의 매트�?���?강제�??�데?�트
             directionalLight.shadow.camera.updateMatrixWorld();
             directionalLight.shadow.camera.updateProjectionMatrix();
             
@@ -119,7 +199,7 @@ export const useMaterialManager = (directionalLight) => {
           }
         }
         
-        // 머터리얼 업데이트 강제
+        // 머터리얼 ?�데?�트 강제
         material.needsUpdate = true;
       } catch (error) {
         console.error('Error updating material uniforms:', error);
@@ -127,7 +207,7 @@ export const useMaterialManager = (directionalLight) => {
     };
 
     return material;
-  }, [directionalLight, vertexShader, defaultFragmentShader]);
+  }, [directionalLight]);
 
   const createMaterial = useCallback((name = 'New Material') => {
     const newMaterial = {
@@ -139,7 +219,7 @@ export const useMaterialManager = (directionalLight) => {
     };
     setMaterials(prev => [...prev, newMaterial]);
     return newMaterial;
-  }, [defaultFragmentShader]);
+  }, []);
 
   const updateMaterial = useCallback((updatedMaterial) => {
     setMaterials(prev => prev.map(mat => mat.id === updatedMaterial.id ? { ...updatedMaterial, lastModified: Date.now() } : mat));
@@ -224,6 +304,14 @@ export const useMaterialManager = (directionalLight) => {
     applyMaterialToMesh,
     revertToOriginalMaterial,
     createThreeJSMaterial,
-    updateAllMaterialUniforms
+    updateAllMaterialUniforms,
+    vectorDebugFragmentShader
   };
 };
+
+
+
+
+
+
+
